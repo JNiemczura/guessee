@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+/*
+ * Placeholder brand tokens. Product guidance lists brand, name, and visual style
+ * as still open, so every colour and type decision lives here as a variable and
+ * can be reskinned without touching components.
+ */
+:root {
+  --background: #f7f6f3;
+  --surface: #ffffff;
+  --surface-sunken: #efeee9;
+  --foreground: #1b1a17;
+  --muted: #5f5c54;
+  --border: #d9d6cd;
+  --accent: #1f5c4d;
+  --accent-contrast: #ffffff;
+  --positive: #1f5c4d;
+  --negative: #8a3324;
+  --warning: #7a5a12;
+  --focus: #1f5c4d;
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #14150f;
+    --surface: #1d1e18;
+    --surface-sunken: #26271f;
+    --foreground: #f2f1ea;
+    --muted: #a8a69b;
+    --border: #383a30;
+    --accent: #7fc7ae;
+    --accent-contrast: #10201b;
+    --positive: #7fc7ae;
+    --negative: #e59a86;
+    --warning: #dfbe6a;
+    --focus: #7fc7ae;
+  }
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Visible focus everywhere, never removed. */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Long clue text must never force a sideways scroll during a round. */
+body {
+  overflow-x: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
