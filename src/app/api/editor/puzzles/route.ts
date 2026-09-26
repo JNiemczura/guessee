@@ -8,7 +8,7 @@ import {
 } from "@/db/queries";
 import { GAME_ID, type Puzzle } from "@/lib/types";
 import { validatePuzzle } from "@/lib/validatePuzzle";
-import { isAuthorized } from "@/server/editorAuth";
+import { isAuthorizedRequest } from "@/server/editorAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ function toJsonSafe(puzzle: Puzzle) {
 }
 
 export async function GET(request: Request) {
-  if (!(await isAuthorized(request))) {
+  if (!isAuthorizedRequest(request)) {
     return Response.json({ error: "Editor key required." }, { status: 401 });
   }
 
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!(await isAuthorized(request))) {
+  if (!isAuthorizedRequest(request)) {
     return Response.json({ error: "Editor key required." }, { status: 401 });
   }
 

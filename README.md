@@ -25,6 +25,7 @@ separate migration step for a fresh clone.
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` / `npm run test:watch` | Vitest |
 | `npm run db:seed` | Seeds the database and prints what loaded |
+| `npm run check:coverage` | Prints the 14-day content report; exits `1` if a day is uncovered |
 
 ### Environment
 
@@ -33,6 +34,8 @@ separate migration step for a fresh clone.
 | `GUESSEE_DB_PATH` | SQLite location, default `./data/guessee.db` |
 | `GUESSEE_EDITOR_KEY` | Required to reach `/editor`. A single shared secret; accounts are out of MVP scope |
 | `GUESSEE_TOKEN_SECRET` | Signs round tokens |
+| `GUESSEE_ALERT_TOKEN` | Optional separate key for the scheduled coverage check, so a cron job never needs the editor key |
+| `GUESSEE_ALERT_WEBHOOK` | Optional Slack or Discord incoming webhook for the missing-puzzle alert |
 | `NEXT_PUBLIC_SITE_ORIGIN` | Origin used in share links |
 
 `data/` and `.env*` are git-ignored. Only `.env.example` is committed.
@@ -86,6 +89,49 @@ judgement rather than defects.
 Status moves follow a fixed graph — `draft → in_review → playtested → scheduled → published`, with
 `corrected` and `retired` alongside — and a `scheduled` puzzle publishes itself at its date.
 
+## Catching a missing puzzle
+
+A daily game that silently skips a day is the failure that loses an audience, so coverage is checked
+by something outside the app. Run it from a laptop cron or any scheduler:
+
+```bash
+npm run check:coverage                 # exits 1 when a day is uncovered
+```
+
+or point a scheduler at the endpoint, which answers `200` either way and sets a header:
+
+```bash
+curl -H "x-guessee-key: $GUESSEE_EDITOR_KEY" https://guessee.example/api/alerts/coverage
+# x-guessee-coverage: missing_puzzles
+```
+
+Set `GUESSEE_ALERT_WEBHOOK` to a Slack or Discord incoming webhook and the same check posts the
+message there, so a human hears about it. `GUESSEE_ALERT_TOKEN` lets the scheduler use its own key
+instead of the editor one. A day counts as covered if it has a `scheduled` or `published` daily, and
+the check also complains when fewer than seven reviewed days are queued ahead.
+
+The alert payload carries date keys and counts only, never an answer or a clue.
+
+## When something breaks
+
+Errors are recorded so a failed round is visible to the person who can fix it:
+
+- `src/components/ErrorReporter.tsx` captures uncaught browser errors and unhandled rejections and
+  posts them to `/api/errors`. Consent does not apply: analytics describe how someone plays, but an
+  error means the game failed for them.
+- The round, guess, hint, give-up, and reveal handlers record anything that is not an expected
+  `RoundError`. Expected rejections, such as a wrong guess, stay out of the log.
+- `/editor` shows the last ten errors and a 24-hour count, and `/api/editor/errors` returns them as
+  JSON.
+
+Two deliberate choices are worth knowing before changing this:
+
+- There is no `instrumentation.ts`. Next compiles that file into an edge bundle as well as the node
+  one, and `better-sqlite3` cannot be resolved there, so server errors are captured in the handlers
+  (`src/server/withErrorCapture.ts` and `recordServerError`) instead.
+- Message and stack are length-capped and whitespace-flattened when written, and a session that
+  reports more than twenty times in ten minutes is dropped rather than stored.
+
 ## Analytics
 
 Nothing is recorded before a choice is made, and declining is permanent and equally supported. With
@@ -99,7 +145,7 @@ src/app/          routes (pages and route handlers)
 src/components/   client components
 src/lib/          pure rules: normalize, match, score, round state machine, validation, sharing
 src/db/           schema, mapping, queries, seed
-src/server/       round service and editor auth
+src/server/       round service, editor auth, coverage alert, error log
 src/content/      the sample puzzle set
 ```
 
@@ -107,10 +153,3 @@ src/content/      the sample puzzle set
 scoring and the end conditions cannot drift between the client and the server. The tests in
 `src/**/*.test.ts` cover the rule set directly, and `src/server/roundService.test.ts` covers the
 same rules against a real in-memory database.
-
-## Still to do
-
-- **Milestone 1 is human work.** Test with 5-10 people, then act on what they report.
-- Secondary launch gates in the guidance are not built: monetisation/ads, region availability,
-  performance and load targets, and the deeper analytics.
-- The editor uses one shared key rather than accounts.

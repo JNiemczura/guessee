@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { reportError } from "@/components/ErrorReporter";
 import { getSessionId, trackEvent } from "@/lib/clientAnalytics";
 import { durationBucket } from "@/lib/events";
 import { buildShareText } from "@/lib/share";
@@ -151,7 +152,7 @@ export function RoundBoard(props: BoardProps) {
 
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         const response = await fetch("/api/round", {
           method: "POST",
@@ -179,7 +180,8 @@ export function RoundBoard(props: BoardProps) {
             puzzle_id: props.puzzleId,
           });
         }
-      } catch {
+      } catch (error) {
+        reportError("round.load", error);
         if (!cancelled) setLoadError("This puzzle could not be opened. Check your connection.");
       }
     })();
@@ -280,7 +282,8 @@ export function RoundBoard(props: BoardProps) {
         });
         clearStored(props.puzzleId);
       }
-    } catch {
+    } catch (error) {
+      reportError("round.guess", error);
       setFeedback({ text: "That did not reach the server. Try again.", tone: "bad" });
     } finally {
       setBusy(false);
@@ -380,6 +383,8 @@ export function RoundBoard(props: BoardProps) {
       await navigator.clipboard.writeText(text);
       setShareState("copied");
     } catch {
+      // A blocked clipboard is a permission or insecure-context fact, not a
+      // defect worth recording: it would only add noise to the error log.
       setShareState("failed");
     }
 

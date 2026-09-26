@@ -66,6 +66,23 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE INDEX IF NOT EXISTS idx_events_name ON events (name, created_at);
 
+-- Error monitoring. A stack trace can contain a path or a URL, so the free-text
+-- columns are capped when written and are only ever read back behind the editor
+-- key. Errors are operational, not behavioural analytics, so they are recorded
+-- regardless of analytics consent: a player who declined tracking still gets
+-- their broken round fixed.
+CREATE TABLE IF NOT EXISTS error_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  context TEXT NOT NULL,
+  message TEXT NOT NULL,
+  detail TEXT,
+  session_id TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_error_log_created ON error_log (created_at DESC);
+
 -- Authoritative attempt accounting for a round. One row per browser session and
 -- puzzle. It holds no guess text, so it can enforce the attempt limit and the
 -- one-official-result rule without holding what a player typed.

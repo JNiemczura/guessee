@@ -1,5 +1,6 @@
 import { getDb } from "@/db/client";
 import { getPuzzleById, toShell } from "@/db/queries";
+import { recordServerError } from "@/server/errorLog";
 import { RoundError, startRound } from "@/server/roundService";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
       const status = error.code === "not_found" ? 404 : 400;
       return Response.json({ error: error.message, code: error.code }, { status });
     }
+    recordServerError("api.round", error);
     return Response.json({ error: "Could not start the round." }, { status: 500 });
   }
 }

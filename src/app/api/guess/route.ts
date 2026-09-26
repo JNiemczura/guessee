@@ -1,4 +1,5 @@
 import { getDb } from "@/db/client";
+import { recordServerError } from "@/server/errorLog";
 import { RoundError, submitGuess } from "@/server/roundService";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
         error.code === "not_found" ? 404 : error.code === "internal" ? 500 : 400;
       return Response.json({ error: error.message, code: error.code }, { status });
     }
+    recordServerError("api.guess", error);
     return Response.json({ error: "Could not record that guess." }, { status: 500 });
   }
 }

@@ -38,6 +38,9 @@ yarn-error.log*
 # local sqlite database
 /data/
 
+# personal working notes, never published
+*.local.md
+
 # vercel
 .vercel
 

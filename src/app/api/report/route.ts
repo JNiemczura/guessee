@@ -1,5 +1,6 @@
 import { getDb } from "@/db/client";
 import type { ReportKind } from "@/lib/types";
+import { withErrorCapture } from "@/server/withErrorCapture";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ const KINDS: ReportKind[] = [
   "other",
 ];
 
-export async function POST(request: Request) {
+export const POST = withErrorCapture("api.report", async (request: Request) => {
   let body: { puzzleId?: unknown; kind?: unknown; message?: unknown };
   try {
     body = await request.json();
@@ -35,4 +36,4 @@ export async function POST(request: Request) {
     .run(puzzleId, kind, message, new Date().toISOString());
 
   return Response.json({ ok: true });
-}
+});

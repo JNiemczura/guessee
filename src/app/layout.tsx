@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ConsentBanner } from "@/components/ConsentBanner";
+import { ErrorReporter } from "@/components/ErrorReporter";
 import { HUB_LABEL } from "@/lib/types";
 
 import "./globals.css";
@@ -83,6 +84,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </footer>
 
         <ConsentBanner />
+        <ErrorReporter />
       </body>
     </html>
   );

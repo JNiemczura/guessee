@@ -1,10 +1,12 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { EditorBoard } from "@/components/EditorBoard";
 import { getDb } from "@/db/client";
 import { dailyCoverage, listAllPuzzles } from "@/db/queries";
 import { addUtcDays, formatUtcDate, todayUtc } from "@/lib/dates";
-import { isAuthorized } from "@/server/editorAuth";
+import { EDITOR_COOKIE, keyMatches } from "@/server/editorAuth";
+import { countErrorsSince, recentErrors } from "@/server/errorLog";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,8 @@ const STATUS_ORDER = [
 ] as const;
 
 export default async function EditorPage() {
-  if (!(await isAuthorized())) {
+  const store = await cookies();
+  if (!keyMatches(store.get(EDITOR_COOKIE)?.value)) {
     redirect("/editor/login");
   }
 
@@ -33,6 +36,8 @@ export default async function EditorPage() {
   const puzzles = listAllPuzzles(db);
   const coverage = dailyCoverage(db, 14);
   const missing = coverage.filter((day) => !day.covered);
+  const errors = recentErrors(db, 10);
+  const errorsLast24h = countErrorsSince(db, new Date(now.getTime() - 24 * 60 * 60 * 1000), now);
 
   return (
     <div className="space-y-6">
@@ -76,6 +81,27 @@ export default async function EditorPage() {
               ))}
             </ul>
           </div>
+        )}
+      </section>
+
+      <section aria-labelledby="errors-heading" className="rounded-lg border border-line bg-surface p-5">
+        <h2 id="errors-heading" className="text-sm font-semibold uppercase tracking-wide text-muted">
+          Recent errors ({errorsLast24h} in the last 24h)
+        </h2>
+        {errors.length === 0 ? (
+          <p className="mt-2 text-sm">Nothing recorded. Player-side crashes and server errors appear here.</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-line">
+            {errors.map((entry) => (
+              <li key={entry.id} className="py-2 text-sm">
+                <span className="font-mono text-xs text-muted">
+                  {entry.created_at.slice(0, 19).replace("T", " ")} &middot; {entry.source} &middot;{" "}
+                  {entry.context}
+                </span>
+                <span className="mt-0.5 block break-words">{entry.message}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
 

@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 
 import { PuzzleForm } from "@/components/PuzzleForm";
 import { getDb } from "@/db/client";
 import { getPuzzleById, listAllPuzzles, listRevisions } from "@/db/queries";
 import { validatePuzzle } from "@/lib/validatePuzzle";
-import { isAuthorized } from "@/server/editorAuth";
+import { EDITOR_COOKIE, keyMatches } from "@/server/editorAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,8 @@ export const metadata = {
 };
 
 export default async function EditorPuzzlePage(props: PageProps<"/editor/puzzles/[puzzleId]">) {
-  if (!(await isAuthorized())) {
+  const store = await cookies();
+  if (!keyMatches(store.get(EDITOR_COOKIE)?.value)) {
     redirect("/editor/login");
   }
 

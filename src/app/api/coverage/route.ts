@@ -1,6 +1,6 @@
 import { getDb } from "@/db/client";
 import { dailyCoverage, exportPuzzles } from "@/db/queries";
-import { isAuthorized } from "@/server/editorAuth";
+import { isAuthorizedRequest } from "@/server/editorAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
  * (the backup/export requirement in the nonfunctional list).
  */
 export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
+  if (!isAuthorizedRequest(request)) {
     return Response.json({ error: "Editor key required." }, { status: 401 });
   }
 
