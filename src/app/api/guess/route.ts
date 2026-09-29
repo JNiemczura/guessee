@@ -1,5 +1,6 @@
 import { getDb } from "@/db/client";
 import { recordServerError } from "@/server/errorLog";
+import { isAuthorizedRequest } from "@/server/editorAuth";
 import { RoundError, submitGuess } from "@/server/roundService";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = submitGuess(getDb(), body);
+    const result = submitGuess(getDb(), body, isAuthorizedRequest(request));
     return Response.json(result);
   } catch (error) {
     if (error instanceof RoundError) {

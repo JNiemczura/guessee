@@ -135,6 +135,12 @@ export default async function EditorPage() {
                   >
                     Open
                   </a>
+                  <a
+                    href={`/editor/puzzles/${encodeURIComponent(puzzle.id)}/play`}
+                    className="min-h-11 rounded border border-line px-3 py-2 text-sm font-medium hover:bg-surface-sunken"
+                  >
+                    Preview
+                  </a>
                 </li>
               ))}
             </ul>
@@ -142,7 +148,10 @@ export default async function EditorPage() {
         );
       })}
 
-      <EditorBoard nextDate={missing[0]?.dateKey ?? addUtcDays(todayUtc(now), coverage.length)} />
+      <EditorBoard
+        nextDate={missing[0]?.dateKey ?? addUtcDays(todayUtc(now), coverage.length)}
+        takenIds={puzzles.map((puzzle) => puzzle.id)}
+      />
 
       <p className="text-xs text-muted">
         Signed in with the editor key stored in an httpOnly cookie.

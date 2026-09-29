@@ -42,6 +42,14 @@ export default async function EditorPuzzlePage(props: PageProps<"/editor/puzzles
           {puzzle.kind} &middot; {puzzle.language} &middot; revision {puzzle.revision} &middot;{" "}
           {puzzle.status.replace("_", " ")}
         </p>
+        <p className="mt-2">
+          <Link
+            href={`/editor/puzzles/${encodeURIComponent(puzzle.id)}/play`}
+            className="inline-flex min-h-11 items-center rounded border border-line px-3 py-2 text-sm font-medium hover:bg-surface-sunken"
+          >
+            Play it to preview
+          </Link>
+        </p>
       </header>
 
       <PuzzleForm

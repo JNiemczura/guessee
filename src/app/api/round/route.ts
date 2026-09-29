@@ -1,5 +1,6 @@
 import { getDb } from "@/db/client";
 import { getPuzzleById, toShell } from "@/db/queries";
+import { isAuthorizedRequest } from "@/server/editorAuth";
 import { recordServerError } from "@/server/errorLog";
 import { RoundError, startRound } from "@/server/roundService";
 
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
   const db = getDb();
 
   try {
-    const round = startRound(db, String(body.puzzleId ?? ""), String(body.sessionId ?? ""));
+    const round = startRound(db, String(body.puzzleId ?? ""), String(body.sessionId ?? ""), isAuthorizedRequest(request));
     const puzzle = getPuzzleById(db, round.puzzleId);
 
     if (!puzzle) {

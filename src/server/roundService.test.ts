@@ -109,6 +109,57 @@ describe("startRound", () => {
   });
 });
 
+describe("editor preview", () => {
+  it("still refuses an unpublished puzzle when the allowance is not claimed", () => {
+    insertPuzzle(db, daily({ id: "pc-review", status: "playtested" }));
+    for (const attempt of [
+      () => startRound(db, "pc-review", SESSION),
+      () => submitGuess(db, { sessionId: SESSION, puzzleId: "pc-review", guess: "Penicillium" }),
+      () => takeHint(db, { sessionId: SESSION, puzzleId: "pc-review" }),
+      () => giveUp(db, { sessionId: SESSION, puzzleId: "pc-review" }),
+      () => getReveal(db, { sessionId: SESSION, puzzleId: "pc-review" }),
+    ]) {
+      expect(attempt).toThrow(/not available to play/i);
+    }
+  });
+
+  it("plays an unpublished puzzle when the caller proved editor access", () => {
+    insertPuzzle(db, daily({ id: "pc-review", status: "playtested" }));
+    const round = startRound(db, "pc-review", SESSION, true);
+    expect(round.status).toBe("playing");
+
+    const wrong = submitGuess(
+      db,
+      { sessionId: SESSION, puzzleId: "pc-review", guess: "zebra" },
+      true,
+    );
+    expect(wrong.verdict).toBe("incorrect");
+
+    const right = submitGuess(
+      db,
+      { sessionId: SESSION, puzzleId: "pc-review", guess: "Penicillium" },
+      true,
+    );
+    expect(right.verdict).toBe("correct");
+  });
+
+  it("keeps the reveal ledger rule during a preview", () => {
+    insertPuzzle(db, daily({ id: "pc-review", status: "playtested" }));
+    startRound(db, "pc-review", SESSION, true);
+
+    expect(getReveal(db, { sessionId: SESSION, puzzleId: "pc-review" }, true)).toBeNull();
+
+    giveUp(db, { sessionId: SESSION, puzzleId: "pc-review" }, true);
+    const reveal = getReveal(db, { sessionId: SESSION, puzzleId: "pc-review" }, true);
+    expect(reveal?.answer).toBe("Penicillin");
+  });
+
+  it("stays shut for a retired puzzle even for the editor", () => {
+    insertPuzzle(db, daily({ id: "pc-dead", status: "retired" }));
+    expect(() => startRound(db, "pc-dead", SESSION, true)).toThrow(/not available to play/i);
+  });
+});
+
 describe("guessing", () => {
   beforeEach(() => {
     startRound(db, "pc-2026-01-01", SESSION);

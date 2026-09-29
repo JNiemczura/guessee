@@ -99,13 +99,30 @@ function requireSessionId(sessionId: unknown): string {
   return sessionId;
 }
 
-function loadPlayable(db: Db, puzzleId: unknown): Puzzle {
+/**
+ * Loads the puzzle a round may act on.
+ *
+ * The default is deliberately strict: only a published, in-window daily or a
+ * practice entry is playable, which is what stops a player from reaching an
+ * answer the moment a puzzle is scheduled.
+ *
+ * `allowUnpublished` is the editor preview exception and is the single place
+ * that rule is relaxed. It is never derived from anything the client sends in
+ * the body: the caller must prove it is acting on a valid editor session, and
+ * the caller is always a route that has already checked the request. Retired
+ * puzzles stay closed even for the editor, because a retired entry has no
+ * meaningful state left to play.
+ */
+function loadPlayable(db: Db, puzzleId: unknown, allowUnpublished = false): Puzzle {
   if (typeof puzzleId !== "string" || !puzzleId) {
     throw new RoundError("A puzzle id is required.", "bad_request");
   }
   const puzzle = getPlayablePuzzle(db, puzzleId);
   if (!puzzle) {
     const exists = getPuzzleById(db, puzzleId);
+    if (allowUnpublished && exists && exists.status !== "retired") {
+      return exists;
+    }
     throw new RoundError(
       exists
         ? "That puzzle is not available to play."
@@ -116,9 +133,14 @@ function loadPlayable(db: Db, puzzleId: unknown): Puzzle {
   return puzzle;
 }
 
-export function startRound(db: Db, puzzleId: string, sessionId: string): SessionRound {
+export function startRound(
+  db: Db,
+  puzzleId: string,
+  sessionId: string,
+  allowUnpublished = false,
+): SessionRound {
   requireSessionId(sessionId);
-  const puzzle = loadPlayable(db, puzzleId);
+  const puzzle = loadPlayable(db, puzzleId, allowUnpublished);
 
   const existing = readRound(db, sessionId, puzzle);
   if (existing) return existing;
@@ -299,9 +321,10 @@ function recordGuess(
 export function submitGuess(
   db: Db,
   input: { sessionId?: unknown; puzzleId?: unknown; guess?: unknown },
+  allowUnpublished = false,
 ): GuessResponse & { clues: string[] } {
   const sessionId = requireSessionId(input.sessionId);
-  const puzzle = loadPlayable(db, input.puzzleId);
+  const puzzle = loadPlayable(db, input.puzzleId, allowUnpublished);
 
   if (typeof input.guess !== "string") {
     return buildRejection(db, sessionId, puzzle, "not_a_string", "Enter a word to search for.");
@@ -423,9 +446,13 @@ function buildRejection(
   };
 }
 
-export function takeHint(db: Db, input: { sessionId?: unknown; puzzleId?: unknown }) {
+export function takeHint(
+  db: Db,
+  input: { sessionId?: unknown; puzzleId?: unknown },
+  allowUnpublished = false,
+) {
   const sessionId = requireSessionId(input.sessionId);
-  const puzzle = loadPlayable(db, input.puzzleId);
+  const puzzle = loadPlayable(db, input.puzzleId, allowUnpublished);
 
   const round = readRound(db, sessionId, puzzle);
   if (!round) throw new RoundError("Start the round before using a hint.", "no_round");
@@ -461,9 +488,13 @@ export function takeHint(db: Db, input: { sessionId?: unknown; puzzleId?: unknow
   };
 }
 
-export function giveUp(db: Db, input: { sessionId?: unknown; puzzleId?: unknown }) {
+export function giveUp(
+  db: Db,
+  input: { sessionId?: unknown; puzzleId?: unknown },
+  allowUnpublished = false,
+) {
   const sessionId = requireSessionId(input.sessionId);
-  const puzzle = loadPlayable(db, input.puzzleId);
+  const puzzle = loadPlayable(db, input.puzzleId, allowUnpublished);
 
   const round = readRound(db, sessionId, puzzle);
   if (!round) throw new RoundError("Start the round before giving up.", "no_round");
@@ -487,9 +518,10 @@ export function giveUp(db: Db, input: { sessionId?: unknown; puzzleId?: unknown 
 export function getReveal(
   db: Db,
   input: { sessionId?: unknown; puzzleId?: unknown },
+  allowUnpublished = false,
 ): RevealPayload | null {
   const sessionId = requireSessionId(input.sessionId);
-  const puzzle = loadPlayable(db, input.puzzleId);
+  const puzzle = loadPlayable(db, input.puzzleId, allowUnpublished);
 
   const round = readRound(db, sessionId, puzzle);
   if (!round || !isFinished(toRoundState(puzzle, round))) return null;

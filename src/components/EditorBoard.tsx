@@ -3,19 +3,30 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { draftIdForDate } from "@/lib/forwardBuffer";
 import { GAME_ID, type Puzzle } from "@/lib/types";
 
 /**
  * Minimal create form. The full editor is per-puzzle; this only needs enough to
  * create a draft and hand it to the review workflow.
+ *
+ * `takenIds` is the set of ids the server already knows about, so a draft can
+ * never be minted onto an id that exists. It is passed in rather than fetched
+ * because this form is rendered on a page that has already loaded them.
  */
-export function EditorBoard({ nextDate }: { nextDate: string }) {
+export function EditorBoard({
+  nextDate,
+  takenIds,
+}: {
+  nextDate: string;
+  takenIds?: readonly string[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const puzzleId = `pc-${nextDate}`;
+  const puzzleId = draftIdForDate(nextDate, takenIds ?? []);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

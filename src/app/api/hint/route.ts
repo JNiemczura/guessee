@@ -1,5 +1,6 @@
 import { getDb } from "@/db/client";
 import { recordServerError } from "@/server/errorLog";
+import { isAuthorizedRequest } from "@/server/editorAuth";
 import { RoundError, takeHint } from "@/server/roundService";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    return Response.json(takeHint(getDb(), body));
+    return Response.json(takeHint(getDb(), body, isAuthorizedRequest(request)));
   } catch (error) {
     if (error instanceof RoundError) {
       const status = error.code === "not_found" ? 404 : 400;
