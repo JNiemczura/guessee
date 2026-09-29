@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { GAME_ID, type Puzzle } from "./types";
-import { errorsOf, validatePuzzle, warningsOf } from "./validatePuzzle";
+import {
+  errorsOf,
+  reviewIssuesFor,
+  validatePuzzle,
+  warningsOf,
+} from "./validatePuzzle";
 
 const NOW = "2026-01-01T00:00:00.000Z";
 
@@ -106,5 +111,38 @@ describe("validatePuzzle", () => {
     expect(
       codes(validatePuzzle(puzzle({ kind: "practice", scheduledDate: null }))),
     ).not.toContain("date_invalid");
+  });
+});
+
+describe("reviewIssuesFor", () => {
+  it("reports both issues while the sign-off is incomplete", () => {
+    const codes = reviewIssuesFor({ reviewer: null, ambiguityCheckedAt: null }).map((i) => i.code);
+    expect(codes).toEqual(["reviewer_missing", "ambiguity_unchecked"]);
+  });
+
+  it("treats a whitespace-only reviewer as missing", () => {
+    const codes = reviewIssuesFor({ reviewer: "   ", ambiguityCheckedAt: NOW }).map((i) => i.code);
+    expect(codes).toEqual(["reviewer_missing"]);
+  });
+
+  it("is clear once the form is filled in", () => {
+    expect(reviewIssuesFor({ reviewer: "Kuba", ambiguityCheckedAt: NOW })).toEqual([]);
+  });
+
+  it("matches what validatePuzzle reports, so the gate and the form agree", () => {
+    // The editor form re-derives these from live state while the scheduling gate
+    // reads validatePuzzle. If the two disagreed, the form would light up green
+    // on a puzzle the server still refuses to schedule.
+    for (const overrides of [
+      { reviewer: null, ambiguityCheckedAt: null },
+      { reviewer: "Kuba", ambiguityCheckedAt: null },
+      { reviewer: null, ambiguityCheckedAt: NOW },
+      { reviewer: "Kuba", ambiguityCheckedAt: NOW },
+    ]) {
+      const fromValidator = errorsOf(validatePuzzle(puzzle(overrides))).filter((issue) =>
+        ["reviewer_missing", "ambiguity_unchecked"].includes(issue.code),
+      );
+      expect(reviewIssuesFor(puzzle(overrides))).toEqual(fromValidator);
+    }
   });
 });

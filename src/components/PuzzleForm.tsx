@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { Puzzle, PuzzleStatus } from "@/lib/types";
-import type { ValidationIssue } from "@/lib/validatePuzzle";
+import { REVIEW_ISSUE_CODES, reviewIssuesFor, type ValidationIssue } from "@/lib/validatePuzzle";
 
 const STATUSES: PuzzleStatus[] = [
   "draft",
@@ -78,8 +78,17 @@ export function PuzzleForm({
     }
   };
 
-  const errors = issues.filter((issue) => issue.severity === "error");
-  const warnings = issues.filter((issue) => issue.severity === "warning");
+  // The reviewer and ambiguity tick live in this form, so their issues are
+  // re-derived from what is on screen now. Everything else stays as the server
+  // reported it, since a stale copy of those two would leave "Save and schedule"
+  // disabled on a form the editor has just filled in correctly.
+  const merged = useMemo<ValidationIssue[]>(() => {
+    const stale = new Set<string>(REVIEW_ISSUE_CODES);
+    return [...issues.filter((issue) => !stale.has(issue.code)), ...reviewIssuesFor(puzzle)];
+  }, [issues, puzzle]);
+
+  const errors = merged.filter((issue) => issue.severity === "error");
+  const warnings = merged.filter((issue) => issue.severity === "warning");
 
   return (
     <div className="space-y-5">
@@ -87,7 +96,7 @@ export function PuzzleForm({
         <h2 id="issues-heading" className="text-sm font-semibold uppercase tracking-wide text-muted">
           Validation
         </h2>
-        {issues.length === 0 ? (
+        {merged.length === 0 ? (
           <p className="mt-2 text-sm">
             No issues found. Scheduling requires a reviewer, a ticked ambiguity check, and no errors.
           </p>
@@ -354,6 +363,11 @@ export function PuzzleForm({
             type="button"
             onClick={() => save("scheduled")}
             disabled={busy || errors.length > 0}
+            title={
+              errors.length > 0
+                ? "Resolve the blocking issues above first."
+                : "Save this puzzle and put it on the schedule."
+            }
             className="min-h-11 rounded border border-line px-4 py-2 text-sm font-medium hover:bg-surface-sunken disabled:opacity-50"
           >
             Save and schedule

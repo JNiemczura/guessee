@@ -11,6 +11,48 @@ export type ValidationIssue = {
   message: string;
 };
 
+/**
+ * The two issues the review sign-off produces, kept separate because the editor
+ * form owns those fields and has to re-derive them as you type.
+ *
+ * The server snapshot a form loads with is correct for the moment it was sent.
+ * Filling in the reviewer and ticking the ambiguity box does not change that
+ * snapshot, so a form that trusts it alone keeps reporting a blocking error
+ * for a field the user has just completed in front of them, and the control
+ * that clears it stays greyed out. The editor combines the server's issues with
+ * these, dropping the stale copies, so the button reflects the current form.
+ *
+ * `validatePuzzle` still produces them, because the scheduling gate reads
+ * `validation.ok` and must not be satisfied by a stale value.
+ */
+export const REVIEW_ISSUE_CODES = ["reviewer_missing", "ambiguity_unchecked"] as const;
+
+export function reviewIssuesFor(
+  puzzle: Pick<Puzzle, "reviewer" | "ambiguityCheckedAt">,
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  if (!puzzle.reviewer?.trim()) {
+    issues.push({
+      severity: "error",
+      field: "reviewer",
+      code: "reviewer_missing",
+      message: "A second person must review before scheduling.",
+    });
+  }
+
+  if (!puzzle.ambiguityCheckedAt) {
+    issues.push({
+      severity: "error",
+      field: "ambiguityCheckedAt",
+      code: "ambiguity_unchecked",
+      message: "Tick the ambiguity check: confirm the accepted answers are the only fair ones.",
+    });
+  }
+
+  return issues;
+}
+
 export type ValidationResult = {
   ok: boolean;
   issues: ValidationIssue[];
@@ -119,17 +161,7 @@ export function validatePuzzle(puzzle: Puzzle, allPuzzles: readonly Puzzle[] = [
     push("error", "author", "author_missing", "Record who wrote the puzzle.");
   }
 
-  if (!puzzle.reviewer?.trim()) {
-    push("error", "reviewer", "reviewer_missing", "A second person must review before scheduling.");
-  }
-  if (!puzzle.ambiguityCheckedAt) {
-    push(
-      "error",
-      "ambiguityCheckedAt",
-      "ambiguity_unchecked",
-      "Tick the ambiguity check: confirm the accepted answers are the only fair ones.",
-    );
-  }
+  issues.push(...reviewIssuesFor(puzzle));
 
   if (puzzle.difficulty < 1 || puzzle.difficulty > 5) {
     push("error", "difficulty", "difficulty_range", "Difficulty must be between 1 and 5.");
