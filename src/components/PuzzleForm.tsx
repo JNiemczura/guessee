@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import type { Puzzle, PuzzleStatus } from "@/lib/types";
+import { parseAliases, toLines } from "@/lib/listField";
 import { REVIEW_ISSUE_CODES, reviewIssuesFor, type ValidationIssue } from "@/lib/validatePuzzle";
 
 const STATUSES: PuzzleStatus[] = [
@@ -20,9 +21,7 @@ type Revision = { revision: number; changedBy: string; note: string; changedAt: 
 const inputClass =
   "min-h-11 w-full rounded border border-line bg-background px-3 py-2 text-base";
 
-function toLines(values: string[]): string {
-  return values.join("\n");
-}
+
 
 export function PuzzleForm({
   initial,
@@ -34,6 +33,8 @@ export function PuzzleForm({
   initialIssues: ValidationIssue[];
 }) {
   const [puzzle, setPuzzle] = useState<Puzzle>(initial);
+  // Held as raw text so a half-finished line survives typing. Parsed on save.
+  const [aliasText, setAliasText] = useState(() => toLines(initial.aliases));
   const [issues, setIssues] = useState<ValidationIssue[]>(initialIssues);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +47,8 @@ export function PuzzleForm({
     setMessage(null);
     setError(null);
 
-    const next = statusOverride ? { ...puzzle, status: statusOverride } : puzzle;
+    const parsed = { ...puzzle, aliases: parseAliases(aliasText) };
+    const next = statusOverride ? { ...parsed, status: statusOverride } : parsed;
 
     try {
       const response = await fetch("/api/editor/puzzles", {
@@ -180,10 +182,8 @@ export function PuzzleForm({
             id="aliases"
             rows={4}
             className={`mt-1 ${inputClass} font-mono text-sm`}
-            value={toLines(puzzle.aliases)}
-            onChange={(event) =>
-              patch({ aliases: event.target.value.split("\n").map((line) => line.trim()).filter(Boolean) })
-            }
+            value={aliasText}
+            onChange={(event) => setAliasText(event.target.value)}
           />
           <p className="mt-1 text-xs text-muted">
             Plurals are generated automatically for simple cases. Add anything irregular here.
@@ -390,7 +390,8 @@ export function PuzzleForm({
         </ol>
         <p className="mt-3 text-sm text-muted">
           Accepted forms: {puzzle.answer ? "answer plus " : ""}
-          {puzzle.aliases.length} editor alias{puzzle.aliases.length === 1 ? "" : "es"}.
+          {parseAliases(aliasText).length} editor alias
+          {parseAliases(aliasText).length === 1 ? "" : "es"}.
         </p>
       </section>
 
