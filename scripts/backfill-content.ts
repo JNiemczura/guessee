@@ -20,11 +20,15 @@ import { listAllPuzzles } from "../src/db/queries";
 import { insertPuzzle } from "../src/db/seed";
 import { buildSeedPuzzles } from "../src/content/puzzles";
 import { todayUtc } from "@/lib/dates";
-import { draftIdForDate, firstUncoveredDate, planForwardPlacement } from "@/lib/forwardBuffer";
+import {
+  draftIdForDate,
+  firstUncoveredDate,
+  occupyingDateKeys,
+  planForwardPlacement,
+  QUEUED_DAILY_STATUSES,
+} from "@/lib/forwardBuffer";
 import { normalizeGuess } from "@/lib/normalize";
-import { GAME_ID, type Puzzle, type PuzzleStatus } from "@/lib/types";
-
-const UNREVIEWED: PuzzleStatus[] = ["draft", "in_review", "playtested"];
+import { GAME_ID, type Puzzle } from "@/lib/types";
 
 const db = getDb();
 const now = new Date();
@@ -42,7 +46,7 @@ const existingAnswers = new Set(
 // Dailies already in the database that nobody has approved yet, oldest target
 // date first so the intended running order is preserved.
 const queued: Puzzle[] = existing
-  .filter((puzzle) => puzzle.kind === "daily" && UNREVIEWED.includes(puzzle.status))
+  .filter((puzzle) => puzzle.kind === "daily" && QUEUED_DAILY_STATUSES.includes(puzzle.status))
   .sort((a, b) => {
     const left = a.scheduledDate ?? "9999-12-31";
     const right = b.scheduledDate ?? "9999-12-31";
@@ -57,9 +61,7 @@ const newSeeds = seeds.filter(
     !existingAnswers.has(normalizeGuess(seed.answer)),
 );
 
-const liveDates = existing
-  .filter((puzzle) => puzzle.kind === "daily" && !UNREVIEWED.includes(puzzle.status))
-  .map((puzzle) => puzzle.scheduledDate);
+const liveDates = occupyingDateKeys(existing);
 
 const plan = planForwardPlacement({
   today,

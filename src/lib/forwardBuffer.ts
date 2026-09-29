@@ -1,4 +1,47 @@
 import { addUtcDays } from "./dates";
+import type { PuzzleKind, PuzzleStatus } from "./types";
+
+/**
+ * Daily statuses that can still be moved by the planner: authored, dated ahead
+ * of the day it runs, and not yet playable, so relocating one cannot strand a
+ * round or expose an unreviewed answer.
+ */
+export const QUEUED_DAILY_STATUSES: readonly PuzzleStatus[] = ["draft", "in_review", "playtested"];
+
+/**
+ * Statuses that genuinely hold a date: a player can be served that puzzle, or
+ * has been, so the slot is not up for reassignment.
+ *
+ * `retired` is deliberately absent. A retired daily is off the calendar, and
+ * its date is free again. Treating retirement as occupancy means retiring a
+ * puzzle cannot open a hole, so the planner walks straight past the vacated day
+ * and the hole is never filled.
+ */
+export const LIVE_DAILY_STATUSES: readonly PuzzleStatus[] = [
+  "corrected",
+  "scheduled",
+  "published",
+];
+
+/**
+ * The dates a planner must not drop new content onto.
+ *
+ * Only dailies count. A practice puzzle shares no date with anything else, and
+ * a queued daily is excluded so a drifted queue gets moved into a hole instead
+ * of stranded behind one.
+ */
+export function occupyingDateKeys(
+  puzzles: readonly { kind: PuzzleKind; status: PuzzleStatus; scheduledDate?: string | null }[],
+): string[] {
+  return puzzles
+    .filter(
+      (puzzle) =>
+        puzzle.kind === "daily" && LIVE_DAILY_STATUSES.includes(puzzle.status),
+    )
+    .map((puzzle) => puzzle.scheduledDate)
+    .filter((date): date is string => Boolean(date));
+}
+
 
 /**
  * Decides which date each unreviewed daily should sit on.

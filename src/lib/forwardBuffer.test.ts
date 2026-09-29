@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { addUtcDays } from "./dates";
-import { draftIdForDate, firstUncoveredDate, planForwardPlacement } from "./forwardBuffer";
+import type { Puzzle } from "./types";
+import {
+  draftIdForDate,
+  firstUncoveredDate,
+  occupyingDateKeys,
+  planForwardPlacement,
+} from "./forwardBuffer";
 
 const TODAY = "2026-01-10";
 
@@ -129,5 +135,55 @@ describe("draftIdForDate", () => {
   it("keeps stepping past a run of suffixed ids", () => {
     const taken = ["pc-2026-10-12", "pc-2026-10-12-2", "pc-2026-10-12-3"];
     expect(draftIdForDate("2026-10-12", taken)).toBe("pc-2026-10-12-4");
+  });
+});
+
+describe("occupyingDateKeys", () => {
+  const row = (over: Partial<Puzzle> = {}) => ({
+    kind: "daily" as const,
+    status: "scheduled" as const,
+    scheduledDate: "2026-10-04",
+    ...over,
+  });
+
+  it("treats scheduled, published and corrected as holding their date", () => {
+    const dates = occupyingDateKeys([
+      row({ status: "scheduled" }),
+      row({ status: "published", scheduledDate: "2026-10-05" }),
+      row({ status: "corrected", scheduledDate: "2026-10-06" }),
+    ]);
+    expect(dates).toEqual(["2026-10-04", "2026-10-05", "2026-10-06"]);
+  });
+
+  it("releases the date of a retired daily, so the hole can be refilled", () => {
+    // Retiring is how a reviewed puzzle is pulled. If the date stayed occupied,
+    // the planner would step over the vacated day and the hole would never be
+    // filled, leaving coverage permanently short.
+    expect(occupyingDateKeys([row({ status: "retired" })])).toEqual([]);
+  });
+
+  it("releases the date of an unreviewed daily, which the planner may move", () => {
+    expect(occupyingDateKeys([row({ status: "draft" })])).toEqual([]);
+    expect(occupyingDateKeys([row({ status: "in_review" })])).toEqual([]);
+    expect(occupyingDateKeys([row({ status: "playtested" })])).toEqual([]);
+  });
+
+  it("ignores practice rows, which share no date with a daily", () => {
+    expect(occupyingDateKeys([row({ kind: "practice" })])).toEqual([]);
+  });
+
+  it("ignores rows with no date", () => {
+    expect(occupyingDateKeys([row({ scheduledDate: null })])).toEqual([]);
+    expect(occupyingDateKeys([row({ scheduledDate: undefined })])).toEqual([]);
+  });
+
+  it("lets a planner refill a retired day", () => {
+    const plan = planForwardPlacement({
+      today: "2026-10-04",
+      liveDates: occupyingDateKeys([row({ status: "retired" })]),
+      queued: [],
+      newSeeds: [{ key: "new", answer: "new" }],
+    });
+    expect(plan.get("new")).toBe("2026-10-04");
   });
 });
