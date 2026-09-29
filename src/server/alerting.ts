@@ -1,6 +1,6 @@
 import type { Db } from "@/db/client";
 import { dailyCoverage, type MissingDay } from "@/db/queries";
-import { formatUtcDate } from "@/lib/dates";
+import { formatUtcDate, todayUtc } from "@/lib/dates";
 
 /**
  * Missing-puzzle alert (launch gate in the product guidance).
@@ -19,10 +19,31 @@ export type CoverageAlert = {
   /** Below this many reviewed days ahead, the buffer is not safe. */
   minimumBufferDays: number;
   coveredAhead: number;
+  /** Dailies already authored and dated ahead, still waiting on a reviewer. */
+  awaitingReview: number;
   message: string;
 };
 
 export const MINIMUM_BUFFER_DAYS = 7;
+
+/**
+ * Counts dated dailies that are authored but not yet schedulable. They do not
+ * count as covered, but knowing how many are queued tells an operator how much
+ * reviewing is left rather than how much writing.
+ */
+export function countAwaitingReview(db: Db, now: Date = new Date()): number {
+  const today = todayUtc(now);
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS total FROM puzzles
+        WHERE kind = 'daily'
+          AND status IN ('draft', 'in_review', 'playtested')
+          AND scheduled_date IS NOT NULL
+          AND scheduled_date >= ?`,
+    )
+    .get(today) as { total: number };
+  return row.total;
+}
 
 export function checkCoverage(
   db: Db,
@@ -38,6 +59,7 @@ export function checkCoverage(
 
   const coveredAhead = coverage.filter((day) => day.covered).length;
   const thin = coveredAhead < minimumBuffer;
+  const awaitingReview = countAwaitingReview(db, options.now ?? new Date());
 
   const problems: string[] = [];
   if (missing.length > 0) {
@@ -53,16 +75,22 @@ export function checkCoverage(
     );
   }
 
+  const reviewNote =
+    awaitingReview > 0
+      ? ` ${awaitingReview} daily puzzle${awaitingReview === 1 ? " is" : "s are"} authored and dated ahead, waiting on a second reviewer.`
+      : "";
+
   return {
     status: problems.length > 0 ? "missing_puzzles" : "ok",
     checkedDays: days,
     missing,
     minimumBufferDays: minimumBuffer,
     coveredAhead,
+    awaitingReview,
     message:
-      problems.length > 0
+      (problems.length > 0
         ? `Guessee content alert: ${problems.join("; ")}.`
-        : `Guessee content is clear: ${coveredAhead} reviewed days ahead.`,
+        : `Guessee content is clear: ${coveredAhead} reviewed days ahead.`) + reviewNote,
   };
 }
 

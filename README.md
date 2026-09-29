@@ -24,7 +24,8 @@ separate migration step for a fresh clone.
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` / `npm run test:watch` | Vitest |
-| `npm run db:seed` | Seeds the database and prints what loaded |
+| `npm run db:seed` | Seeds the database and prints what loaded. Only runs on an empty database |
+| `npm run db:backfill` | Brings an existing database up to date: adds newly authored dailies and dates the ones still in the review queue. Safe to re-run |
 | `npm run check:coverage` | Prints the 14-day content report; exits `1` if a day is uncovered |
 
 ### Environment

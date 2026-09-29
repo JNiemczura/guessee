@@ -136,6 +136,28 @@ describe("checkCoverage", () => {
     expect(serialised).not.toContain("Penicillin");
     expect(serialised).not.toContain("One clue.");
   });
+
+  it("counts dated dailies that are authored but still unreviewed", () => {
+    for (let offset = 0; offset < 3; offset += 1) insertPuzzle(db, daily(dateFor(offset)));
+    for (const offset of [3, 4, 5]) {
+      insertPuzzle(db, daily(dateFor(offset), { status: "in_review", publishedAt: null }));
+    }
+
+    const alert = checkCoverage(db, { now: NOW });
+    expect(alert.awaitingReview).toBe(3);
+    expect(alert.coveredAhead).toBe(3);
+    expect(alert.message).toContain("3 daily puzzles are authored and dated ahead");
+  });
+
+  it("does not count a review-queue puzzle in the past, or one with no date", () => {
+    insertPuzzle(db, daily(dateFor(-1), { status: "in_review", publishedAt: null }));
+    insertPuzzle(
+      db,
+      daily("pc-unscheduled", { scheduledDate: null, status: "in_review", publishedAt: null }),
+    );
+
+    expect(checkCoverage(db, { now: NOW }).awaitingReview).toBe(0);
+  });
 });
 
 describe("sendCoverageAlert", () => {
@@ -145,10 +167,11 @@ describe("sendCoverageAlert", () => {
     missing: [{ dateKey: "2026-01-12", label: "12 Jan 2026" }],
     minimumBufferDays: 7,
     coveredAhead: 2,
+    awaitingReview: 5,
     message: "Guessee content alert: 12 days without a reviewed puzzle.",
   };
 
-  const clear: CoverageAlert = { ...missing, status: "ok", missing: [], coveredAhead: 14, message: "clear" };
+  const clear: CoverageAlert = { ...missing, status: "ok", missing: [], coveredAhead: 14, message: "clear", awaitingReview: 0 };
 
   afterEach(() => {
     vi.unstubAllGlobals();
