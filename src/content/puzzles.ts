@@ -20,8 +20,15 @@ export type SeedPuzzle = {
   hintsAllowed: number;
 };
 
-const AUTHOR = "M. Konecka";
-const REVIEWER = "R. Nowak";
+/**
+ * Placeholder byline for seeded content.
+ *
+ * This is not a person. It is a stand-in so the field is non-empty and
+ * validation has something to check, and it must be replaced with the real
+ * author before launch. It is deliberately not a plausible-looking human name,
+ * because a plausible fake is harder to notice than an obvious one.
+ */
+const AUTHOR = "unattributed seed content";
 
 type Draft = Omit<SeedPuzzle, "id" | "scheduledDate" | "status" | "author" | "reviewer" | "ambiguityCheckedAt"> & {
   status?: PuzzleStatus;
@@ -656,8 +663,8 @@ export function buildSeedPuzzles(now: Date = new Date()): SeedPuzzle[] {
     scheduledDate: dailyDates[index],
     status: "published" as PuzzleStatus,
     author: draft.author ?? AUTHOR,
-    reviewer: draft.reviewer ?? REVIEWER,
-    ambiguityCheckedAt: draft.ambiguityCheckedAt ?? `${dailyDates[index]}T09:00:00.000Z`,
+    reviewer: null,
+    ambiguityCheckedAt: null,
   }));
 
   const scheduled = DRAFTS.slice(8, 9).map((draft) => ({
@@ -666,8 +673,8 @@ export function buildSeedPuzzles(now: Date = new Date()): SeedPuzzle[] {
     scheduledDate: nextDate,
     status: "scheduled" as PuzzleStatus,
     author: draft.author ?? AUTHOR,
-    reviewer: draft.reviewer ?? REVIEWER,
-    ambiguityCheckedAt: draft.ambiguityCheckedAt ?? `${today}T11:00:00.000Z`,
+    reviewer: null,
+    ambiguityCheckedAt: null,
   }));
 
   // The two dailies the editor had already written but never dated. A daily is
@@ -699,8 +706,8 @@ export function buildSeedPuzzles(now: Date = new Date()): SeedPuzzle[] {
     scheduledDate: null,
     status: "published" as PuzzleStatus,
     author: draft.author ?? AUTHOR,
-    reviewer: draft.reviewer ?? REVIEWER,
-    ambiguityCheckedAt: draft.ambiguityCheckedAt ?? `${today}T08:00:00.000Z`,
+    reviewer: null,
+    ambiguityCheckedAt: null,
   }));
 
   const forward = FORWARD_DAILIES.map((draft, index) => {

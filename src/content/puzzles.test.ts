@@ -25,6 +25,18 @@ function asPuzzle(seed: SeedPuzzle) {
 }
 
 describe("shipped content", () => {
+  it("never asserts a review that no human performed", () => {
+    // A reviewer name and a ticked ambiguity check are the record of a second
+    // person signing a puzzle off. Shipping a seed that carries them invents
+    // that person and that sign-off, and because a published puzzle is the one
+    // a player can actually see, the claim outlives the code. Only a real
+    // review may fill these in, so nothing in the seed may.
+    for (const seed of seeds) {
+      expect({ id: seed.id, reviewer: seed.reviewer }).toEqual({ id: seed.id, reviewer: null });
+      expect(seed.ambiguityCheckedAt).toBeNull();
+    }
+  });
+
   it("is free of validation errors, treating the review gate as expected", () => {
     const failures = seeds.flatMap((seed) =>
       errorsOf(validatePuzzle(asPuzzle(seed), seeds.map(asPuzzle)))
